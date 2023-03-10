@@ -6,4 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "*"
 majority = "*"
+tokio = { version = "*", features = ["macros", "rt-multi-thread"] }
+serenity = { version = "*", default-features = false, features = [
+	"cache",
+	"model",
+	"builder",
+	"client",
+	"gateway",
+	"http",
+	"utils",
+	"rustls_backend",
+] }
+log = "*"
+env_logger = "*"
