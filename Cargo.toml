@@ -21,3 +21,6 @@ serenity = { version = "*", default-features = false, features = [
 ] }
 log = "*"
 env_logger = "*"
+confy = "*"
+lazy_static = "*"
+serde = "*"

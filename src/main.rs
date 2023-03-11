@@ -1,3 +1,5 @@
+mod config;
+mod discord_utils;
 mod majority_bot;
 mod majority_commands;
 mod majority_events;
