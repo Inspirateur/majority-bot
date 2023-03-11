@@ -590,9 +590,9 @@ dependencies = [
 
 [[package]]
 name = "majority"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f1ed2981837f3dc7268b5a41d3e2cdef2763c9f9d2421fcc4a97a41d18e3040"
+checksum = "229168e790a0176adaddf985ac74d0ae4c070db611ceadf160020c450a9ea1eb"
 dependencies = [
  "anyhow",
  "rusqlite",
