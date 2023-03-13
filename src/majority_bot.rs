@@ -1,7 +1,11 @@
-pub struct Majority {}
+use majority::{Poll, Polls};
+
+pub struct Majority {
+    polls: Polls
+}
 
 impl Majority {
     pub fn new() -> Self {
-        todo!()
+        Majority { polls: Polls::new("polls.db").unwrap() }
     }
 }
