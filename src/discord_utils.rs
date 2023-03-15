@@ -7,7 +7,7 @@ use serenity::{
             application_command::ApplicationCommandInteraction,
             InteractionResponseType::ChannelMessageWithSource,
         },
-        prelude::{Channel, ChannelId},
+        prelude::{Channel, ChannelId, Message},
     },
     prelude::Context,
 };
@@ -20,7 +20,7 @@ pub struct Attachment {
 
 #[async_trait]
 pub trait Bot {
-    async fn answer(&self, command: &Command, content: &str, files: Vec<Attachment>) -> Result<()>;
+    async fn answer(&self, command: &Command, content: &str, files: Vec<Attachment>) -> Result<Message>;
 
     async fn followup(
         &self,
@@ -32,7 +32,7 @@ pub trait Bot {
 
 #[async_trait]
 impl Bot for Http {
-    async fn answer(&self, command: &Command, content: &str, files: Vec<Attachment>) -> Result<()> {
+    async fn answer(&self, command: &Command, content: &str, files: Vec<Attachment>) -> Result<Message> {
         (command
             .create_interaction_response(self, |response| {
                 response
@@ -46,7 +46,8 @@ impl Bot for Http {
                     })
             })
             .await)
-            .context("Command create response failed")
+            .context("Command create response failed")?;
+        Ok(command.get_interaction_response(self).await?)
     }
 
     async fn followup(

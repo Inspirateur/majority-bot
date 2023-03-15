@@ -1,7 +1,6 @@
 use std::sync::Arc;
-
 use crate::{discord_utils::Bot, majority_bot::Majority};
-use anyhow::Result;
+use anyhow::{Result, Ok};
 use log::{trace, warn};
 use serenity::{
     http::Http,
@@ -32,7 +31,20 @@ impl Majority {
         } else {
             String::new()
         };
-        todo!()
+        let answer = ctx.http.answer(
+            &command, 
+            &format!(
+                "{}\n\n<Reply to this message with 1 poll option per line>", 
+                desc
+            ), 
+            vec![]
+        ).await?;
+        self.polls.add_poll(
+            answer.id, 
+            command.member.unwrap().user.id, 
+            desc, Vec::<String>::new()
+        )?;
+        Ok(())
     }
 
     pub async fn info_command(
@@ -49,7 +61,8 @@ impl Majority {
                 <https://electowiki.org/wiki/Majority_Judgment>",
                 vec![],
             )
-            .await
+            .await?;
+        Ok(())
     }
 
     pub async fn register_commands(&self, http: Arc<Http>, guild_id: GuildId) {

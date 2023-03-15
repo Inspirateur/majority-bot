@@ -1,7 +1,7 @@
 use majority::{Poll, Polls};
 
 pub struct Majority {
-    polls: Polls
+    pub polls: Polls
 }
 
 impl Majority {
