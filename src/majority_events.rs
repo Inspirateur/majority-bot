@@ -6,7 +6,7 @@ use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
     async_trait,
-    model::prelude::{interaction::Interaction, Message, Ready},
+    model::prelude::{interaction::Interaction, Guild, Message, Ready},
     prelude::{Context, EventHandler},
 };
 
@@ -14,6 +14,10 @@ use serenity::{
 impl EventHandler for Majority {
     async fn ready(&self, _ctx: Context, ready: Ready) {
         info!(target: "majority-bot", "{} is connected!", ready.user.name);
+    }
+
+    async fn guild_create(&self, ctx: Context, guild: Guild, _is_new: bool) {
+        self.register_commands(ctx.http.clone(), guild.id).await;
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
