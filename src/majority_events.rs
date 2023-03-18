@@ -6,12 +6,16 @@ use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
     async_trait,
-    model::prelude::{interaction::Interaction, Ready},
+    model::prelude::{interaction::Interaction, Message, Ready},
     prelude::{Context, EventHandler},
 };
 
 #[async_trait]
 impl EventHandler for Majority {
+    async fn ready(&self, _ctx: Context, ready: Ready) {
+        info!(target: "majority-bot", "{} is connected!", ready.user.name);
+    }
+
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         match interaction {
             Interaction::ApplicationCommand(command) => {
@@ -43,7 +47,18 @@ impl EventHandler for Majority {
         }
     }
 
-    async fn ready(&self, _ctx: Context, ready: Ready) {
-        info!(target: "majority-bot", "{} is connected!", ready.user.name);
+    async fn message(&self, ctx: Context, message: Message) {
+        if let Some(referenced) = message.referenced_message {
+            if let Ok(me) = ctx.http.get_current_user().await {
+                if referenced.author.id == me.id {
+                    if let Err(why) = self
+                        .add_options_command(ctx, *referenced, message.content)
+                        .await
+                    {
+                        warn!(target: "majority-bot", "{}: {:?}", "add_options", why);
+                    }
+                }
+            }
+        }
     }
 }

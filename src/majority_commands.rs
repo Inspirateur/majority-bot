@@ -1,16 +1,16 @@
-use std::sync::Arc;
 use crate::{discord_utils::Bot, majority_bot::Majority};
-use anyhow::{Result, Ok};
+use anyhow::{Ok, Result};
 use log::{trace, warn};
 use serenity::{
     http::Http,
     model::prelude::{
         command::CommandOptionType,
         interaction::application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-        GuildId,
+        GuildId, Message,
     },
     prelude::Context,
 };
+use std::sync::Arc;
 
 impl Majority {
     pub async fn poll_command(
@@ -31,19 +31,39 @@ impl Majority {
         } else {
             String::new()
         };
-        let answer = ctx.http.answer(
-            &command, 
-            &format!(
-                "{}\n\n<Reply to this message with 1 poll option per line>", 
-                desc
-            ), 
-            vec![]
-        ).await?;
+        let answer = ctx
+            .http
+            .answer(
+                &command,
+                &format!(
+                    "{}\n\n<Reply to this message with 1 poll option per line>",
+                    desc
+                ),
+                vec![],
+            )
+            .await?;
         self.polls.add_poll(
-            answer.id, 
-            command.member.unwrap().user.id, 
-            desc, Vec::<String>::new()
+            answer.id,
+            command.member.unwrap().user.id,
+            desc,
+            Vec::<String>::new(),
         )?;
+        Ok(())
+    }
+
+    pub async fn add_options_command(
+        &self,
+        ctx: Context,
+        mut poll_msg: Message,
+        options_msg: String,
+    ) -> Result<()> {
+        let options = options_msg
+            .lines()
+            .map(|opt| opt.trim())
+            .filter(|opt| opt.len() > 0)
+            .collect();
+        let poll = self.polls.add_options(poll_msg.id, options)?;
+        poll_msg.edit(&ctx, |m| self.make_message(poll, m)).await?;
         Ok(())
     }
 
