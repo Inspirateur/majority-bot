@@ -1,6 +1,7 @@
 use crate::{discord_utils::Bot, majority_bot::Majority};
 use anyhow::{Ok, Result};
 use log::{trace, warn};
+use majority::DefaultVote;
 use serenity::{
     http::Http,
     model::prelude::{
@@ -47,6 +48,7 @@ impl Majority {
             command.member.unwrap().user.id,
             desc,
             Vec::<String>::new(),
+            DefaultVote::IGNORE
         )?;
         Ok(())
     }
@@ -63,7 +65,10 @@ impl Majority {
             .filter(|opt| opt.len() > 0)
             .collect();
         let poll = self.polls.add_options(poll_msg.id, options)?;
-        poll_msg.edit(&ctx, |m| self.make_message(poll, m)).await?;
+        poll_msg.edit(&ctx, |m| {
+            self.make_message(poll, m);
+            m
+        }).await?;
         Ok(())
     }
 

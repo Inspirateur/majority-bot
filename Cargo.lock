@@ -209,6 +209,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "either"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
+
+[[package]]
 name = "encoding_rs"
 version = "0.8.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -565,6 +571,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -629,9 +644,9 @@ dependencies = [
 
 [[package]]
 name = "majority"
-version = "0.1.5"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c766b6aa16111970ce0cce8d0029f638d5297fc32f7c4534fb3e06fa010abcfa"
+checksum = "f624078208f077cc725e2a6dd99630d83aaf319c4b5f3e6f38c5eb77dd8ec26f"
 dependencies = [
  "anyhow",
  "rusqlite",
@@ -644,6 +659,7 @@ dependencies = [
  "anyhow",
  "confy",
  "env_logger",
+ "itertools",
  "lazy_static",
  "log",
  "majority",
