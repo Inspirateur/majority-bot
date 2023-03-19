@@ -7,7 +7,7 @@ use serenity::{
             application_command::ApplicationCommandInteraction,
             InteractionResponseType::ChannelMessageWithSource,
         },
-        prelude::{Channel, ChannelId, Message},
+        prelude::{Channel, ChannelId, Message, component::ButtonStyle},
     },
     prelude::Context,
 };
@@ -16,6 +16,12 @@ type Command = ApplicationCommandInteraction;
 pub struct Attachment {
     pub file: Vec<u8>,
     pub filename: String,
+}
+
+pub struct Button {
+    pub custom_id: String,
+    pub style: ButtonStyle,
+    pub label: String,
 }
 
 #[async_trait]
@@ -28,6 +34,8 @@ pub trait Bot {
         content: &str,
         files: Vec<Attachment>,
     ) -> Result<()>;
+
+    async fn send(&self, channel_id: ChannelId, content: &str, buttons: Vec<Button>) -> Result<Message>;
 }
 
 #[async_trait]
@@ -67,6 +75,34 @@ impl Bot for Http {
             .await)
             .context("Command create followup failed")?;
         Ok(())
+    }
+
+    async fn send(&self, channel_id: ChannelId, content: &str, buttons: Vec<Button>) -> Result<Message> {
+        Ok(
+            channel_id.send_message(
+                &self, |message| {
+                    message.content(content);
+                    if buttons.len() > 0 {
+                        message.components(
+                            |components| components.create_action_row(
+                                |action_row|  {
+                                    for button in buttons {
+                                        action_row.create_button(
+                                            |b| b
+                                                .custom_id(button.custom_id)
+                                                .style(button.style)
+                                                .label(button.label)
+                                        );
+                                    }
+                                    action_row
+                                }
+                            )
+                        );
+                    }
+                    message
+                }
+            ).await?
+        )
     }
 }
 

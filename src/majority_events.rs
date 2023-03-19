@@ -46,7 +46,12 @@ impl EventHandler for Majority {
                         warn!(target: "majority-bot", "\\{} in non writable channel: {:?}", command_name, why);
                     }
                 }
-            }
+            },
+            Interaction::MessageComponent(command) => {
+                if let Err(why) = self.vote_command(ctx, command).await {
+                    warn!(target: "majority-bot", "{}: {:?}", "vote", why);
+                }
+            },
             _ => {}
         }
     }

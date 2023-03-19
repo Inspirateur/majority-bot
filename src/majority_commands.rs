@@ -1,17 +1,46 @@
-use crate::{discord_utils::Bot, majority_bot::Majority};
-use anyhow::{Ok, Result};
+use crate::{discord_utils::{Bot, Button}, majority_bot::Majority, config::CONFIG};
+use anyhow::{Ok, Result, Error, anyhow};
+use itertools::Itertools;
 use log::{trace, warn};
-use majority::DefaultVote;
+use majority::{DefaultVote, Poll};
 use serenity::{
     http::Http,
     model::prelude::{
         command::CommandOptionType,
-        interaction::application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-        GuildId, Message,
+        interaction::{application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, message_component::MessageComponentInteraction},
+        GuildId, Message, component::ButtonStyle,
     },
     prelude::Context,
 };
 use std::sync::Arc;
+
+struct PollOptionVote {
+    poll_id: String,
+    opt_id: usize,
+    value: usize
+}
+
+
+impl From<PollOptionVote> for String {
+    fn from(poll_opt: PollOptionVote) -> Self {
+        format!("{}-{}-{}", poll_opt.poll_id, poll_opt.opt_id, poll_opt.value)
+    }
+}
+
+impl TryFrom<String> for PollOptionVote {
+    type Error = Error;
+
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        let (vote, option_id, poll_id) = value.rsplitn(3, "-").collect_tuple().ok_or(
+            anyhow!("'{}' is not a PollOptionVote. Expecting <poll_id>-<option_id>-<vote>", value)
+        )?;
+        Ok(PollOptionVote {
+            poll_id: poll_id.to_string(),
+            opt_id: option_id.parse()?,
+            value: vote.parse()?
+        })
+    }
+}
 
 impl Majority {
     pub async fn poll_command(
@@ -56,7 +85,7 @@ impl Majority {
     pub async fn add_options_command(
         &self,
         ctx: Context,
-        mut poll_msg: Message,
+        poll_msg: Message,
         options_msg: String,
     ) -> Result<()> {
         let options = options_msg
@@ -65,10 +94,25 @@ impl Majority {
             .filter(|opt| opt.len() > 0)
             .collect();
         let poll = self.polls.add_options(poll_msg.id, options)?;
-        poll_msg.edit(&ctx, |m| {
-            self.make_message(poll, m);
-            m
-        }).await?;
+        for (opt_id, opt_msg) in self.make_messages(poll).into_iter().enumerate() {
+            ctx.http.send(
+                poll_msg.channel_id, 
+                &opt_msg, 
+                CONFIG.vote_values.iter().enumerate().map(|(value, label)| Button {
+                    custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.to_string(), opt_id, value}),
+                    style: ButtonStyle::Primary,
+                    label: label.to_string()
+                }).collect_vec()
+            ).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn vote_command(&self, ctx: Context, command: MessageComponentInteraction) -> Result<()> {
+        let PollOptionVote { poll_id, opt_id, value } = PollOptionVote::try_from(command.data.custom_id)?;
+        let poll = self.polls.vote(poll_id, opt_id, command.user.id, value)?;
+        // TODO: aaaaand idk how to display the results because each option is split into a separate message 
+        // so i need to store them or else i won't be able to edit them lol
         Ok(())
     }
 
