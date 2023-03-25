@@ -1,13 +1,18 @@
-use crate::{discord_utils::{Bot, Button}, majority_bot::Majority, config::CONFIG};
+use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay};
+use serenity_utils::{Bot, Button};
 use anyhow::{Ok, Result, Error, anyhow};
 use itertools::Itertools;
 use log::{trace, warn};
-use majority::{DefaultVote, Poll};
+use majority::DefaultVote;
 use serenity::{
     http::Http,
     model::prelude::{
         command::CommandOptionType,
-        interaction::{application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, message_component::MessageComponentInteraction},
+        interaction::{
+            application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, 
+            message_component::MessageComponentInteraction,
+            InteractionResponseType::DeferredUpdateMessage
+        },
         GuildId, Message, component::ButtonStyle,
     },
     prelude::Context,
@@ -92,27 +97,44 @@ impl Majority {
             .lines()
             .map(|opt| opt.trim())
             .filter(|opt| opt.len() > 0)
-            .collect();
+            .collect_vec();
+        let n = options.len();
         let poll = self.polls.add_options(poll_msg.id, options)?;
-        for (opt_id, opt_msg) in self.make_messages(poll).into_iter().enumerate() {
-            ctx.http.send(
+        let from = poll.options.len()-n;
+        for opt_id in from..poll.options.len() {
+            let msg = ctx.http.send(
                 poll_msg.channel_id, 
-                &opt_msg, 
+                &poll.option_display(opt_id), 
                 CONFIG.vote_values.iter().enumerate().map(|(value, label)| Button {
                     custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.to_string(), opt_id, value}),
-                    style: ButtonStyle::Primary,
+                    style: ButtonStyle::Secondary,
                     label: label.to_string()
                 }).collect_vec()
             ).await?;
+            self.msg_map.insert(opt_id, msg.id)?;
         }
         Ok(())
     }
 
     pub async fn vote_command(&self, ctx: Context, command: MessageComponentInteraction) -> Result<()> {
-        let PollOptionVote { poll_id, opt_id, value } = PollOptionVote::try_from(command.data.custom_id)?;
+        let PollOptionVote { poll_id, opt_id, value } = PollOptionVote::try_from(command.data.custom_id.clone())?;
+        command.create_interaction_response(&ctx.http, |response| response.kind(DeferredUpdateMessage)).await?;
+        let _poll = self.polls.get_poll(poll_id.clone())?;
+        let last_ranking = _poll.ranking;
         let poll = self.polls.vote(poll_id, opt_id, command.user.id, value)?;
-        // TODO: aaaaand idk how to display the results because each option is split into a separate message 
-        // so i need to store them or else i won't be able to edit them lol
+        // update the option message that recieved the vote
+        let msg_id = self.msg_map.get_single(opt_id)?;
+        let mut msg = ctx.http.get_message(command.channel_id.0, msg_id.parse()?).await?;
+        msg.edit(&ctx.http, |msg| msg.content(poll.option_display(opt_id))).await?;
+        // we also need to update the messages of options that changed ranks after this vote 
+        let to_update = last_ranking.into_iter().zip(&poll.ranking).enumerate().filter_map(|(i, (old_rank, new_rank))| {
+            if old_rank != *new_rank { Some(i) } else { None }
+        });
+        for opt_id in to_update {
+            let msg_id = self.msg_map.get_single(opt_id)?;
+            let mut msg = ctx.http.get_message(command.channel_id.0, msg_id.parse()?).await?;
+            msg.edit(&ctx.http, |msg| msg.content(poll.option_display(opt_id))).await?;    
+        }
         Ok(())
     }
 

@@ -25,3 +25,4 @@ env_logger = "*"
 confy = "*"
 lazy_static = "*"
 serde = "*"
+serenity-utils = { git = "https://github.com/Inspirateur/serenity-utils.git" }

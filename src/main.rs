@@ -1,6 +1,6 @@
 mod utils;
 mod config;
-mod discord_utils;
+mod poll_display;
 mod majority_bot;
 mod majority_commands;
 mod majority_events;
@@ -44,8 +44,6 @@ async fn main() {
     let mut client = Client::builder(
         token,
         GatewayIntents::non_privileged()
-            | GatewayIntents::GUILD_MEMBERS
-            | GatewayIntents::GUILD_PRESENCES,
     )
     .event_handler(Majority::new())
     .application_id(bot_id.into())

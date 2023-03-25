@@ -1,7 +1,5 @@
-use crate::{
-    discord_utils::{is_writable, Bot},
-    majority_bot::Majority,
-};
+use crate::majority_bot::Majority;
+use serenity_utils::{is_writable, Bot};
 use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
