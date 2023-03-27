@@ -1,6 +1,6 @@
-use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay};
+use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay, dtos::{PollOptionVote, PollOption}};
 use serenity_utils::{Bot, Button};
-use anyhow::{Ok, Result, Error, anyhow};
+use anyhow::{Ok, Result};
 use itertools::Itertools;
 use log::{trace, warn};
 use majority::DefaultVote;
@@ -11,7 +11,7 @@ use serenity::{
         interaction::{
             application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, 
             message_component::MessageComponentInteraction,
-            InteractionResponseType::DeferredUpdateMessage
+            InteractionResponseType::UpdateMessage
         },
         GuildId, Message, component::ButtonStyle,
     },
@@ -19,33 +19,6 @@ use serenity::{
 };
 use std::sync::Arc;
 
-struct PollOptionVote {
-    poll_id: String,
-    opt_id: usize,
-    value: usize
-}
-
-
-impl From<PollOptionVote> for String {
-    fn from(poll_opt: PollOptionVote) -> Self {
-        format!("{}-{}-{}", poll_opt.poll_id, poll_opt.opt_id, poll_opt.value)
-    }
-}
-
-impl TryFrom<String> for PollOptionVote {
-    type Error = Error;
-
-    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
-        let (vote, option_id, poll_id) = value.rsplitn(3, "-").collect_tuple().ok_or(
-            anyhow!("'{}' is not a PollOptionVote. Expecting <poll_id>-<option_id>-<vote>", value)
-        )?;
-        Ok(PollOptionVote {
-            poll_id: poll_id.to_string(),
-            opt_id: option_id.parse()?,
-            value: vote.parse()?
-        })
-    }
-}
 
 impl Majority {
     pub async fn poll_command(
@@ -111,27 +84,31 @@ impl Majority {
                     label: label.to_string()
                 }).collect_vec()
             ).await?;
-            self.msg_map.insert(opt_id, msg.id)?;
+            self.msg_map.insert(PollOption {poll_id: poll_msg.id.to_string(), opt_id}, msg.id.to_string())?;
         }
         Ok(())
     }
 
     pub async fn vote_command(&self, ctx: Context, command: MessageComponentInteraction) -> Result<()> {
         let PollOptionVote { poll_id, opt_id, value } = PollOptionVote::try_from(command.data.custom_id.clone())?;
-        command.create_interaction_response(&ctx.http, |response| response.kind(DeferredUpdateMessage)).await?;
         let _poll = self.polls.get_poll(poll_id.clone())?;
         let last_ranking = _poll.ranking;
-        let poll = self.polls.vote(poll_id, opt_id, command.user.id, value)?;
+        let poll = self.polls.vote(poll_id.clone(), opt_id, command.user.id, value)?;
         // update the option message that recieved the vote
-        let msg_id = self.msg_map.get_single(opt_id)?;
-        let mut msg = ctx.http.get_message(command.channel_id.0, msg_id.parse()?).await?;
-        msg.edit(&ctx.http, |msg| msg.content(poll.option_display(opt_id))).await?;
-        // we also need to update the messages of options that changed ranks after this vote 
-        let to_update = last_ranking.into_iter().zip(&poll.ranking).enumerate().filter_map(|(i, (old_rank, new_rank))| {
-            if old_rank != *new_rank { Some(i) } else { None }
+        command.create_interaction_response(
+            &ctx.http, 
+            |response| response.kind(UpdateMessage)
+            .interaction_response_data(|data| data.content(poll.option_display(opt_id)))
+        ).await?;
+        // we also need to update the messages of other options that changed ranks after this vote 
+        // TODO: this doesn't scale, edit are heavily rate limited, and older edits call can be played after newer ones, erasing votes in the display !
+        // the only real solution is a buffer that recieve edits calls on messages, discard the previous ones and apply 1 edit every X seconds with the latest one only
+        let to_update = last_ranking.into_iter().zip(&poll.ranking).enumerate()
+        .filter_map(|(i, (old_rank, new_rank))| {
+            if old_rank != *new_rank && i != opt_id { Some(i) } else { None }
         });
         for opt_id in to_update {
-            let msg_id = self.msg_map.get_single(opt_id)?;
+            let msg_id = self.msg_map.get(PollOption { poll_id: poll_id.clone(), opt_id })?;
             let mut msg = ctx.http.get_message(command.channel_id.0, msg_id.parse()?).await?;
             msg.edit(&ctx.http, |msg| msg.content(poll.option_display(opt_id))).await?;    
         }

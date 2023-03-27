@@ -1,5 +1,6 @@
 mod utils;
 mod config;
+mod dtos;
 mod poll_display;
 mod majority_bot;
 mod majority_commands;
