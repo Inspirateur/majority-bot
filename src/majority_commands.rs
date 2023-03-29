@@ -105,7 +105,7 @@ impl Majority {
         // the only real solution is a buffer that recieve edits calls on messages, discard the previous ones and apply 1 edit every X seconds with the latest one only
         let to_update = last_ranking.into_iter().zip(&poll.ranking).enumerate()
         .filter_map(|(i, (old_rank, new_rank))| {
-            if old_rank != *new_rank && i != opt_id { Some(i) } else { None }
+            if poll.votes[i].len() > 0 && (old_rank < 3 || *new_rank < 3) && old_rank != *new_rank && i != opt_id { Some(i) } else { None }
         });
         for opt_id in to_update {
             let msg_id = self.msg_map.get(PollOption { poll_id: poll_id.clone(), opt_id })?;

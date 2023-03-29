@@ -1,6 +1,6 @@
 use crate::{config::CONFIG, utils::lrm};
 use majority::{Poll, MJVotes};
-const VOTE_STR_LEN: usize = 10;
+const VOTE_STR_LEN: usize = 8;
 
 /// Convert a collection of vote values to a count of the # of votes of each value
 /// input [0, 1, 1, 3, 3, 3, 3, 4, 4, 5]
@@ -37,15 +37,24 @@ impl PollDisplay for Poll {
             "⬛".repeat(VOTE_STR_LEN)
         };
         let rank = &self.ranking[i];
-        let rank_str = match rank {
-            1 => "🥇".to_string(),
-            2 => "🥈".to_string(),
-            3 => "🥉".to_string(),
-            value => format!("{}th", value)
+        let rank_str = if votes.len() > 0 {
+            match rank {
+            1 => " 🥇".to_string(),
+            2 => " 🥈".to_string(),
+            3 => " 🥉".to_string(),
+            _ => String::new()
+            }
+        } else {
+            String::new()
         };
         format!(
-            "{}\n{} {}  |  median: {}  |  {} votes", 
-            opt_desc, rank_str, vote_msg, CONFIG.vote_values[votes.nth_median(0)], votes.len()
+            "{}\n{}{}  |  {} votes{}", 
+            opt_desc, vote_msg, 
+            if let Some(med) = votes.nth_median(0) { 
+                format!("  |  median: {}", CONFIG.vote_values[med]) 
+            } else { 
+                String::new() 
+            }, votes.len(), rank_str
         )
     }
 }
