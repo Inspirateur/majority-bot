@@ -26,6 +26,7 @@ impl EventHandler for Majority {
                 if is_writable(&ctx, command.channel_id).await {
                     if let Err(why) = match command_name.as_str() {
                         "poll" => self.poll_command(ctx, command).await,
+                        "close" => self.close_command(ctx, command).await,
                         "info" => self.info_command(ctx, command).await,
                         _ => Err(anyhow!("Unknown command")),
                     } {

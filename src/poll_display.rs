@@ -48,13 +48,14 @@ impl PollDisplay for Poll {
             String::new()
         };
         format!(
-            "{}\n{}{}  |  {} votes{}", 
+            "{}\n{}  |  {} votes{}{}", 
             opt_desc, vote_msg, 
+            votes.len(),
             if let Some(med) = votes.nth_median(0) { 
                 format!("  |  median: {}", CONFIG.vote_values[med]) 
             } else { 
                 String::new() 
-            }, votes.len(), rank_str
+            }, rank_str
         )
     }
 }

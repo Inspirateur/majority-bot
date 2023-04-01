@@ -44,7 +44,7 @@ impl Majority {
             .answer(
                 &command,
                 &format!(
-                    "{}\n\n<Reply to this message with 1 poll option per line>",
+                    "{}\n*Reply to this message with 1 poll option per line*",
                     desc
                 ),
                 vec![],
@@ -101,7 +101,7 @@ impl Majority {
             .interaction_response_data(|data| data.content(poll.option_display(opt_id)))
         ).await?;
         // we also need to update the messages of other options that changed ranks after this vote 
-        // TODO: this doesn't scale, edit are heavily rate limited, and older edits call can be played after newer ones, erasing votes in the display !
+        // TODO: this doesn't scale well, edit are heavily rate limited, and older edits call can be played after newer ones, erasing votes in the display !
         // the only real solution is a buffer that recieve edits calls on messages, discard the previous ones and apply 1 edit every X seconds with the latest one only
         let to_update = last_ranking.into_iter().zip(&poll.ranking).enumerate()
         .filter_map(|(i, (old_rank, new_rank))| {
@@ -113,6 +113,12 @@ impl Majority {
             msg.edit(&ctx.http, |msg| msg.content(poll.option_display(opt_id))).await?;    
         }
         Ok(())
+    }
+
+    pub async fn close_command(
+        &self, ctx: Context, command: ApplicationCommandInteraction
+    ) -> Result<()> {
+        todo!()
     }
 
     pub async fn info_command(
@@ -148,6 +154,11 @@ impl Majority {
                             .required(true)
                     })
                 })
+                /* TODO: this command, but idk if i can get a message replied to with a command
+                .create_application_command(|command| {
+                    command.name("close")
+                        .description("Closes the Poll that is replied to.")
+                }) */
                 .create_application_command(|command| {
                     command
                         .name("info")
