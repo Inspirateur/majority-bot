@@ -24,5 +24,6 @@ log = "*"
 env_logger = "*"
 confy = "*"
 lazy_static = "*"
+rusqlite = { version = "*", features = ["bundled"] }
 serde = "*"
 serenity-utils = { git = "https://github.com/Inspirateur/serenity-utils.git" }

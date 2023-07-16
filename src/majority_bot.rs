@@ -1,10 +1,10 @@
 use majority::Polls;
 use serenity_utils::DBMap;
-use crate::dtos::PollOption;
+use crate::pollopt_to_sql::PollOption;
 
 pub struct Majority {
     pub polls: Polls,
-    pub msg_map: DBMap<PollOption, String>
+    pub msg_map: DBMap<PollOption, u64>
 }
 
 impl Majority {

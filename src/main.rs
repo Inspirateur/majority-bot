@@ -1,6 +1,6 @@
 mod utils;
 mod config;
-mod dtos;
+mod pollopt_to_sql;
 mod poll_display;
 mod majority_bot;
 mod majority_commands;
@@ -16,7 +16,7 @@ fn get_token(name: &str) -> Option<String> {
     if let Ok(token) = env::var(name) {
         Some(token)
     } else {
-        warn!(target: "majority-bot", "Couldn't find the 'WORDY_TOKEN' environment variable, using token.txt as fallback");
+        warn!(target: "majority-bot", "Couldn't find the 'MAJORITY_TOKEN' environment variable, using token.txt as fallback");
         if let Ok(content) = read_to_string("token.txt") {
             Some(content)
         } else {

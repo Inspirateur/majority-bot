@@ -1,4 +1,4 @@
-use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay, dtos::{PollOptionVote, PollOption}};
+use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay, pollopt_to_sql::{PollOptionVote, PollOption}};
 use serenity_utils::{Bot, Button};
 use anyhow::{Ok, Result};
 use itertools::Itertools;
@@ -79,12 +79,12 @@ impl Majority {
                 poll_msg.channel_id, 
                 &poll.option_display(opt_id), 
                 CONFIG.vote_values.iter().enumerate().map(|(value, label)| Button {
-                    custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.to_string(), opt_id, value}),
+                    custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.0, opt_id, value}),
                     style: ButtonStyle::Secondary,
                     label: label.to_string()
                 }).collect_vec()
             ).await?;
-            self.msg_map.insert(PollOption {poll_id: poll_msg.id.to_string(), opt_id}, msg.id.to_string())?;
+            self.msg_map.insert(PollOption {poll_id: poll_msg.id.0, opt_id}, msg.id.0)?;
         }
         Ok(())
     }
@@ -108,8 +108,8 @@ impl Majority {
             if poll.votes[i].len() > 0 && (old_rank < 3 || *new_rank < 3) && old_rank != *new_rank && i != opt_id { Some(i) } else { None }
         });
         for opt_id in to_update {
-            let msg_id = self.msg_map.get(PollOption { poll_id: poll_id.clone(), opt_id })?;
-            let mut msg = ctx.http.get_message(command.channel_id.0, msg_id.parse()?).await?;
+            let msg_id: u64 = self.msg_map.get(PollOption { poll_id: poll_id, opt_id })?;
+            let mut msg = ctx.http.get_message(command.channel_id.0, msg_id).await?;
             msg.edit(&ctx.http, |msg| msg.content(poll.option_display(opt_id))).await?;    
         }
         Ok(())

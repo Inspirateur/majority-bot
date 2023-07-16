@@ -1,33 +1,22 @@
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
+use rusqlite::{ToSql, types::ToSqlOutput, types::Value};
 
 pub struct PollOption {
-    pub poll_id: String,
+    pub poll_id: u64,
     pub opt_id: usize
 }
 
-impl ToString for PollOption {
-    fn to_string(&self) -> String {
-        format!("{}-{}", self.poll_id, self.opt_id)
-    }
-}
-
-impl TryFrom<String> for PollOption {
-    type Error = anyhow::Error;
-
-    fn try_from(value: String) -> Result<Self> {
-        let (option_id, poll_id) = value.rsplitn(2, "-").collect_tuple().ok_or(
-            anyhow!("'{}' is not a PollOption. Expecting <poll_id>-<option_id>", value)
-        )?;
-        Ok(PollOption {
-            poll_id: poll_id.to_string(),
-            opt_id: option_id.parse()?,
-        })
+impl ToSql for PollOption {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::Owned(Value::Text(
+            format!("{}-{}", self.poll_id, self.opt_id)
+        )))
     }
 }
 
 pub struct PollOptionVote {
-    pub poll_id: String,
+    pub poll_id: u64,
     pub opt_id: usize,
     pub value: usize
 }
@@ -47,7 +36,7 @@ impl TryFrom<String> for PollOptionVote {
             anyhow!("'{}' is not a PollOptionVote. Expecting <poll_id>-<option_id>-<vote>", value)
         )?;
         Ok(PollOptionVote {
-            poll_id: poll_id.to_string(),
+            poll_id: poll_id.parse()?,
             opt_id: option_id.parse()?,
             value: vote.parse()?
         })
