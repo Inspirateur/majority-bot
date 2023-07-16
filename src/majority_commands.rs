@@ -1,5 +1,5 @@
 use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay, pollopt_to_sql::{PollOptionVote, PollOption}};
-use serenity_utils::{Bot, Button};
+use serenity_utils::{Bot, Button, MessageBuilder};
 use anyhow::{Ok, Result};
 use itertools::Itertools;
 use log::{trace, warn};
@@ -43,11 +43,10 @@ impl Majority {
             .http
             .answer(
                 &command,
-                &format!(
+                MessageBuilder::new(format!(
                     "{}\n*Reply to this message with 1 poll option per line*",
                     desc
-                ),
-                vec![],
+                ))
             )
             .await?;
         self.polls.add_poll(
@@ -76,13 +75,14 @@ impl Majority {
         let from = poll.options.len()-n;
         for opt_id in from..poll.options.len() {
             let msg = ctx.http.send(
-                poll_msg.channel_id, 
-                &poll.option_display(opt_id), 
-                CONFIG.vote_values.iter().enumerate().map(|(value, label)| Button {
-                    custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.0, opt_id, value}),
-                    style: ButtonStyle::Secondary,
-                    label: label.to_string()
-                }).collect_vec()
+                poll_msg.channel_id,
+                MessageBuilder::new(poll.option_display(opt_id)).buttons(
+                    CONFIG.vote_values.iter().enumerate().map(|(value, label)| Button {
+                        custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.0, opt_id, value}),
+                        style: ButtonStyle::Secondary,
+                        label: label.to_string()
+                    }).collect_vec()
+                )
             ).await?;
             self.msg_map.insert(PollOption {poll_id: poll_msg.id.0, opt_id}, msg.id.0)?;
         }
@@ -129,11 +129,12 @@ impl Majority {
         ctx.http
             .answer(
                 &command,
-                "Made with ❤️ by Inspi#8989\n
-            	Repository: <https://github.com/Inspirateur/majority-bot>\n\n
-                More info on Majority Judgement Polls:\n
-                <https://electowiki.org/wiki/Majority_Judgment>",
-                vec![],
+                MessageBuilder::new(
+                    "Made with ❤️ by Inspi#8989\n
+                    Repository: <https://github.com/Inspirateur/majority-bot>\n\n
+                    More info on Majority Judgement Polls:\n
+                    <https://electowiki.org/wiki/Majority_Judgment>"
+                )
             )
             .await?;
         Ok(())

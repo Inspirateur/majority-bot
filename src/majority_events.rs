@@ -1,5 +1,5 @@
 use crate::majority_bot::Majority;
-use serenity_utils::{is_writable, Bot};
+use serenity_utils::{is_writable, Bot, MessageBuilder};
 use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
@@ -37,8 +37,7 @@ impl EventHandler for Majority {
                         .http
                         .answer(
                             &command,
-                            "Sorry, I only answer to commands in the channels that I can write to.",
-                            vec![],
+                            MessageBuilder::new("Sorry, I only answer to commands in the channels that I can write to.")
                         )
                         .await
                     {

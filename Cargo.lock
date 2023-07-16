@@ -1180,8 +1180,8 @@ dependencies = [
 
 [[package]]
 name = "serenity-utils"
-version = "0.1.0"
-source = "git+https://github.com/Inspirateur/serenity-utils.git#4e069cadf9c3f4806014035c0d34e9f35a0a08a3"
+version = "0.2.1"
+source = "git+https://github.com/Inspirateur/serenity-utils.git#9f6c80993411f39e1b18f3cb5a7763155047ae06"
 dependencies = [
  "anyhow",
  "rusqlite",
