@@ -1,5 +1,5 @@
 use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay, pollopt_to_sql::{PollOptionVote, PollOption}};
-use serenity_utils::{Bot, Button, MessageBuilder};
+use serenity_utils::{BotUtil, Button, MessageBuilder};
 use anyhow::{Ok, Result};
 use itertools::Itertools;
 use log::{trace, warn};

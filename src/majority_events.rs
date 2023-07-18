@@ -1,5 +1,5 @@
 use crate::majority_bot::Majority;
-use serenity_utils::{is_writable, Bot, MessageBuilder};
+use serenity_utils::{is_writable, BotUtil, MessageBuilder};
 use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
