@@ -1,5 +1,5 @@
 use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay, pollopt_to_sql::{PollOptionVote, PollOption}};
-use serenity_utils::{BotUtil, Button, MessageBuilder};
+use serenity_utils::{BotUtil, Button, MessageBuilder, CommandUtil};
 use anyhow::{Ok, Result};
 use itertools::Itertools;
 use log::{trace, warn};
@@ -11,7 +11,7 @@ use serenity::{
         interaction::{
             application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, 
             message_component::MessageComponentInteraction,
-            InteractionResponseType::UpdateMessage
+            InteractionResponseType
         },
         GuildId, Message, component::ButtonStyle,
     },
@@ -39,14 +39,14 @@ impl Majority {
         } else {
             String::new()
         };
-        let answer = ctx
-            .http
-            .answer(
-                &command,
+        let answer = command
+            .response(
+                &ctx.http,
                 MessageBuilder::new(format!(
                     "{}\n*Reply to this message with 1 poll option per line*",
                     desc
-                ))
+                )),
+                InteractionResponseType::ChannelMessageWithSource
             )
             .await?;
         self.polls.add_poll(
@@ -95,10 +95,10 @@ impl Majority {
         let last_ranking = _poll.ranking;
         let poll = self.polls.vote(poll_id.clone(), opt_id, command.user.id, value)?;
         // update the option message that recieved the vote
-        command.create_interaction_response(
+        command.response(
             &ctx.http, 
-            |response| response.kind(UpdateMessage)
-            .interaction_response_data(|data| data.content(poll.option_display(opt_id)))
+            MessageBuilder::new(poll.option_display(opt_id)),
+            InteractionResponseType::UpdateMessage
         ).await?;
         // we also need to update the messages of other options that changed ranks after this vote 
         // TODO: this doesn't scale well, edit are heavily rate limited, and older edits call can be played after newer ones, erasing votes in the display !
@@ -126,15 +126,16 @@ impl Majority {
         ctx: Context,
         command: ApplicationCommandInteraction,
     ) -> Result<()> {
-        ctx.http
-            .answer(
-                &command,
+        command
+            .response(
+                &ctx.http,
                 MessageBuilder::new(
                     "Made with ❤️ by Inspi#8989\n
                     Repository: <https://github.com/Inspirateur/majority-bot>\n\n
                     More info on Majority Judgement Polls:\n
                     <https://electowiki.org/wiki/Majority_Judgment>"
-                )
+                ),
+                InteractionResponseType::ChannelMessageWithSource
             )
             .await?;
         Ok(())

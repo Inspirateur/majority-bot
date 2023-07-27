@@ -1,10 +1,10 @@
 use crate::majority_bot::Majority;
-use serenity_utils::{is_writable, BotUtil, MessageBuilder};
+use serenity_utils::{is_writable, MessageBuilder, CommandUtil};
 use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
     async_trait,
-    model::prelude::{interaction::Interaction, Guild, Message, Ready},
+    model::prelude::{interaction::{Interaction, InteractionResponseType}, Guild, Message, Ready},
     prelude::{Context, EventHandler},
 };
 
@@ -33,11 +33,11 @@ impl EventHandler for Majority {
                         warn!(target: "majority-bot", "\\{}: {:?}", command_name, why);
                     }
                 } else {
-                    if let Err(why) = ctx
-                        .http
-                        .answer(
-                            &command,
-                            MessageBuilder::new("Sorry, I only answer to commands in the channels that I can write to.")
+                    if let Err(why) = command
+                        .response(
+                            &ctx.http,
+                            MessageBuilder::new("Sorry, I only answer to commands in the channels that I can write to."),
+                            InteractionResponseType::ChannelMessageWithSource
                         )
                         .await
                     {
