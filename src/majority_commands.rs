@@ -5,17 +5,9 @@ use itertools::Itertools;
 use log::{trace, warn};
 use majority::DefaultVote;
 use serenity::{
-    http::Http,
-    model::prelude::{
-        command::CommandOptionType,
-        interaction::{
-            application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, 
-            message_component::MessageComponentInteraction,
-            InteractionResponseType
-        },
-        GuildId, Message, component::ButtonStyle,
-    },
-    prelude::Context,
+    all::{CommandInteraction, CreateCommand, CreateCommandOption, CreateInteractionResponse, CreateInteractionResponseMessage, EditMessage}, http::Http, model::prelude::{
+        ButtonStyle, CommandDataOptionValue, CommandOptionType, ComponentInteraction, GuildId, InteractionResponseFlags, Message
+    }, prelude::Context
 };
 use std::sync::Arc;
 
@@ -24,16 +16,15 @@ impl Majority {
     pub async fn poll_command(
         &self,
         ctx: Context,
-        command: ApplicationCommandInteraction,
+        command: CommandInteraction,
     ) -> Result<()> {
         let desc = if let CommandDataOptionValue::String(value) = command
             .data
             .options
             .get(0)
             .expect("Expected a description of the poll")
-            .resolved
-            .as_ref()
-            .expect("Expected a string")
+            .value
+            .clone()
         {
             value.clone()
         } else {
@@ -46,7 +37,7 @@ impl Majority {
                     "{}\n*Reply to this message with 1 poll option per line*",
                     desc
                 )),
-                InteractionResponseType::ChannelMessageWithSource
+                InteractionResponseFlags::default()
             )
             .await?;
         self.polls.add_poll(
@@ -78,27 +69,28 @@ impl Majority {
                 poll_msg.channel_id,
                 MessageBuilder::new(poll.option_display(opt_id)).buttons(
                     CONFIG.vote_values.iter().enumerate().map(|(value, label)| Button {
-                        custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.0, opt_id, value}),
+                        custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.get(), opt_id, value}),
                         style: ButtonStyle::Secondary,
                         label: label.to_string()
                     }).collect_vec()
                 )
             ).await?;
-            self.msg_map.insert(PollOption {poll_id: poll_msg.id.0, opt_id}, msg.id.0)?;
+            self.msg_map.insert(PollOption {poll_id: poll_msg.id.get(), opt_id}, msg.id.get())?;
         }
         Ok(())
     }
 
-    pub async fn vote_command(&self, ctx: Context, command: MessageComponentInteraction) -> Result<()> {
+    pub async fn vote_action(&self, ctx: Context, command: ComponentInteraction) -> Result<()> {
         let PollOptionVote { poll_id, opt_id, value } = PollOptionVote::try_from(command.data.custom_id.clone())?;
         let _poll = self.polls.get_poll(poll_id.clone())?;
         let last_ranking = _poll.ranking;
         let poll = self.polls.vote(poll_id.clone(), opt_id, command.user.id, value)?;
         // update the option message that recieved the vote
-        command.response(
+        command.create_response(
             &ctx.http, 
-            MessageBuilder::new(poll.option_display(opt_id)),
-            InteractionResponseType::UpdateMessage
+            CreateInteractionResponse::UpdateMessage(
+                CreateInteractionResponseMessage::new().content(poll.option_display(opt_id))
+            )
         ).await?;
         // we also need to update the messages of other options that changed ranks after this vote 
         // TODO: this doesn't scale well, edit are heavily rate limited, and older edits call can be played after newer ones, erasing votes in the display !
@@ -109,14 +101,14 @@ impl Majority {
         });
         for opt_id in to_update {
             let msg_id: u64 = self.msg_map.get(PollOption { poll_id: poll_id, opt_id })?;
-            let mut msg = ctx.http.get_message(command.channel_id.0, msg_id).await?;
-            msg.edit(&ctx.http, |msg| msg.content(poll.option_display(opt_id))).await?;    
+            let mut msg = ctx.http.get_message(command.channel_id, msg_id.into()).await?;
+            msg.edit(&ctx.http, EditMessage::new().content(poll.option_display(opt_id))).await?;    
         }
         Ok(())
     }
 
     pub async fn close_command(
-        &self, ctx: Context, command: ApplicationCommandInteraction
+        &self, ctx: Context, command: CommandInteraction
     ) -> Result<()> {
         todo!()
     }
@@ -124,7 +116,7 @@ impl Majority {
     pub async fn info_command(
         &self,
         ctx: Context,
-        command: ApplicationCommandInteraction,
+        command: CommandInteraction,
     ) -> Result<()> {
         command
             .response(
@@ -135,7 +127,7 @@ impl Majority {
                     More info on Majority Judgement Polls:\n
                     <https://electowiki.org/wiki/Majority_Judgment>"
                 ),
-                InteractionResponseType::ChannelMessageWithSource
+                InteractionResponseFlags::default()
             )
             .await?;
         Ok(())
@@ -143,32 +135,19 @@ impl Majority {
 
     pub async fn register_commands(&self, http: Arc<Http>, guild_id: GuildId) {
         trace!(target: "majority-bot", "Registering slash commands for Guild {}", guild_id);
-        if let Err(why) = GuildId::set_application_commands(&guild_id, http, |commands| {
-            commands
-                .create_application_command(|command| {
-                    command.name("poll").description(
-                        "Create a Majority Judgement Poll, add options by replying to the Poll.",
-                    ).create_option(|option| {
-                        option
-                            .name("description")
-                            .description("What the poll is about.")
-                            .kind(CommandOptionType::String)
-                            .required(true)
-                    })
-                })
-                /* TODO: this command, but idk if i can get a message replied to with a command
-                .create_application_command(|command| {
-                    command.name("close")
-                        .description("Closes the Poll that is replied to.")
-                }) */
-                .create_application_command(|command| {
-                    command
-                        .name("info")
-                        .description("Information about this bot.")
-                })
-        })
-        .await
-        {
+        if let Err(why) = GuildId::set_commands(guild_id, http, vec![
+            CreateCommand::new("poll")
+                .description("Create a Majority Judgement Poll, add options by replying to the Poll.")
+                .add_option(CreateCommandOption::new(
+                    CommandOptionType::String, "description", "What the poll is about."
+                ).required(true)),
+            /* TODO: this command, but idk if i can get a message replied to with a command 
+            CreateCommand::new("close")
+                .description("Closes the Poll that is replied to."),
+            */
+            CreateCommand::new("info")
+                .description("Information about this bot.")
+        ]).await {
             warn!(target: "majority-bot", "Couldn't register slash commmands: {}", why);
         };
     }

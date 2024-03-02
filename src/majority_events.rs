@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
     async_trait,
-    model::prelude::{interaction::{Interaction, InteractionResponseType}, Guild, Message, Ready},
+    model::prelude::{{Interaction, InteractionResponseFlags}, Guild, Message, Ready},
     prelude::{Context, EventHandler},
 };
 
@@ -14,13 +14,13 @@ impl EventHandler for Majority {
         info!(target: "majority-bot", "{} is connected!", ready.user.name);
     }
 
-    async fn guild_create(&self, ctx: Context, guild: Guild, _is_new: bool) {
+    async fn guild_create(&self, ctx: Context, guild: Guild, _is_new: Option<bool>) {
         self.register_commands(ctx.http.clone(), guild.id).await;
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         match interaction {
-            Interaction::ApplicationCommand(command) => {
+            Interaction::Command(command) => {
                 let command_name = command.data.name.to_string();
                 // only answer if the bot has access to the channel
                 if is_writable(&ctx, command.channel_id).await {
@@ -37,7 +37,7 @@ impl EventHandler for Majority {
                         .response(
                             &ctx.http,
                             MessageBuilder::new("Sorry, I only answer to commands in the channels that I can write to."),
-                            InteractionResponseType::ChannelMessageWithSource
+                            InteractionResponseFlags::default()
                         )
                         .await
                     {
@@ -45,8 +45,8 @@ impl EventHandler for Majority {
                     }
                 }
             },
-            Interaction::MessageComponent(command) => {
-                if let Err(why) = self.vote_command(ctx, command).await {
+            Interaction::Component(command) => {
+                if let Err(why) = self.vote_action(ctx, command).await {
                     warn!(target: "majority-bot", "{}: {:?}", "vote", why);
                 }
             },

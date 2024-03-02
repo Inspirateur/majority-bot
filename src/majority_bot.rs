@@ -1,5 +1,5 @@
 use majority::Polls;
-use serenity_utils::DBMap;
+use db_map::DBMap;
 use crate::pollopt_to_sql::PollOption;
 
 pub struct Majority {
