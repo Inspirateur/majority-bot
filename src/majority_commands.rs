@@ -1,12 +1,11 @@
 use crate::{majority_bot::Majority, config::CONFIG, poll_display::PollDisplay, pollopt_to_sql::{PollOptionVote, PollOption}};
-use serenity_utils::{BotUtil, Button, MessageBuilder, CommandUtil};
 use anyhow::{Ok, Result};
 use itertools::Itertools;
 use log::{trace, warn};
 use majority::DefaultVote;
 use serenity::{
-    all::{CommandInteraction, CreateCommand, CreateCommandOption, CreateInteractionResponse, CreateInteractionResponseMessage, EditMessage}, http::Http, model::prelude::{
-        ButtonStyle, CommandDataOptionValue, CommandOptionType, ComponentInteraction, GuildId, InteractionResponseFlags, Message
+    all::{CommandInteraction, CreateActionRow, CreateAllowedMentions, CreateButton, CreateCommand, CreateCommandOption, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, EditMessage}, http::Http, model::prelude::{
+        ButtonStyle, CommandDataOptionValue, CommandOptionType, ComponentInteraction, GuildId, Message
     }, prelude::Context
 };
 use std::sync::Arc;
@@ -30,16 +29,19 @@ impl Majority {
         } else {
             String::new()
         };
-        let answer = command
-            .response(
+        command
+            .create_response(
                 &ctx.http,
-                MessageBuilder::new(format!(
-                    "{}\n*Reply to this message with 1 poll option per line*",
-                    desc
-                )),
-                InteractionResponseFlags::default()
+                CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                    .content(format!(
+                        "{}\n*Reply to this message with 1 poll option per line*",
+                        desc
+                    ))
+                )
             )
             .await?;
+        let answer = command.get_response(&ctx.http).await?;
         self.polls.add_poll(
             answer.id,
             command.member.unwrap().user.id,
@@ -65,15 +67,18 @@ impl Majority {
         let poll = self.polls.add_options(poll_msg.id, options)?;
         let from = poll.options.len()-n;
         for opt_id in from..poll.options.len() {
-            let msg = ctx.http.send(
-                poll_msg.channel_id,
-                MessageBuilder::new(poll.option_display(opt_id)).buttons(
-                    CONFIG.vote_values.iter().enumerate().map(|(value, label)| Button {
-                        custom_id: String::from(PollOptionVote {poll_id: poll_msg.id.get(), opt_id, value}),
-                        style: ButtonStyle::Secondary,
-                        label: label.to_string()
-                    }).collect_vec()
-                )
+            let msg = poll_msg.channel_id.send_message(
+                &ctx.http,
+                CreateMessage::default()
+                    .allowed_mentions(CreateAllowedMentions::default().empty_users())
+                    .content(poll.option_display(opt_id))
+                    .components(vec![CreateActionRow::Buttons(
+                        CONFIG.vote_values.iter().enumerate().map(|(value, label)|
+                        CreateButton::new(String::from(PollOptionVote {poll_id: poll_msg.id.get(), opt_id, value}))
+                            .style(ButtonStyle::Secondary)
+                            .label(label)
+                        ).collect_vec()
+                    )]),
             ).await?;
             self.msg_map.insert(PollOption {poll_id: poll_msg.id.get(), opt_id}, msg.id.get())?;
         }
@@ -119,15 +124,15 @@ impl Majority {
         command: CommandInteraction,
     ) -> Result<()> {
         command
-            .response(
+            .create_response(
                 &ctx.http,
-                MessageBuilder::new(
-                    "Made with ❤️ by Inspi#8989\n
-                    Repository: <https://github.com/Inspirateur/majority-bot>\n\n
-                    More info on Majority Judgement Polls:\n
-                    <https://electowiki.org/wiki/Majority_Judgment>"
-                ),
-                InteractionResponseFlags::default()
+                CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                    .content("Made with ❤️ by Inspi#8989\n
+                        Repository: <https://github.com/Inspirateur/majority-bot>\n\n
+                        More info on Majority Judgement Polls:\n
+                        <https://electowiki.org/wiki/Majority_Judgment>")
+                    ),
             )
             .await?;
         Ok(())

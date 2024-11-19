@@ -1,11 +1,8 @@
 use crate::majority_bot::Majority;
-use serenity_utils::{is_writable, MessageBuilder, CommandUtil};
 use anyhow::anyhow;
 use log::{info, warn};
 use serenity::{
-    async_trait,
-    model::prelude::{{Interaction, InteractionResponseFlags}, Guild, Message, Ready},
-    prelude::{Context, EventHandler},
+    all::{CreateInteractionResponse, CreateInteractionResponseMessage}, async_trait, model::prelude::{Guild, Interaction, Message, Ready}, prelude::{Context, EventHandler}
 };
 
 #[async_trait]
@@ -19,11 +16,12 @@ impl EventHandler for Majority {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        let can_see_channel = interaction.app_permissions().is_some_and(|p| p.view_channel());
         match interaction {
             Interaction::Command(command) => {
                 let command_name = command.data.name.to_string();
                 // only answer if the bot has access to the channel
-                if is_writable(&ctx, command.channel_id).await {
+                if can_see_channel {
                     if let Err(why) = match command_name.as_str() {
                         "poll" => self.poll_command(ctx, command).await,
                         "close" => self.close_command(ctx, command).await,
@@ -34,10 +32,11 @@ impl EventHandler for Majority {
                     }
                 } else {
                     if let Err(why) = command
-                        .response(
+                        .create_response(
                             &ctx.http,
-                            MessageBuilder::new("Sorry, I only answer to commands in the channels that I can write to."),
-                            InteractionResponseFlags::default()
+                            CreateInteractionResponse::UpdateMessage(
+                                CreateInteractionResponseMessage::new().content("Sorry, I only answer to commands in the channels that I can write to.")
+                            )
                         )
                         .await
                     {
